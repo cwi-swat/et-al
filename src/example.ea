@@ -1,0 +1,42 @@
+class Order 
+  rule createOrders: id ⊢ from.to
+  from: Client [uni, inv(to)]
+  item: Product
+  addressedTo: Provider [inv(addressedFrom)]
+  deliveredBy: Delivery [inv(of)]
+
+class Delivery
+  rule correctDelivery: item ⊢ of.item
+  rule completeDelivery: of.item ⊢ item
+  rule receiveGoods:  of.from ⊢ deliveredTo
+  item: Product
+  of: Order [inv(deliveredBy)]
+  deliveredTo: Client
+
+
+class Client
+  rule payInvoices: sentInvoice ⊢ paid
+  paid: Invoice [inj]
+  sentInvoice: Invoice [inv(sendTo)]
+  to: Order [inv(from)]
+
+class Product
+  name: str
+
+class Provider
+  rule properAddress: accepted + rejected ⊢ addressedFrom
+  rule acceptOrders: addressedFrom ⊢ accepted + rejected
+  rule orderBasedDelivery: provided ⊢ accepted.deliveredBy
+  rule shipOrders: accepted ⊢ provided.of
+  provided: Delivery [sur, inj]
+  accepted: Order [inj]
+  rejected: Order [inj]
+  addressedFrom: Order [inv(addressedTo)]
+
+class Invoice
+  rule correctPayments: Client.paid ⊢ sentTo
+  rule correctInvoices: sentTo ⊢ delivery.of.from
+  rule sendInvoices: delivery.of.from ⊢ sentTo
+  sentTo: Client [inv(sentInvoice)]
+  delivery: Delivery
+  from: Provider

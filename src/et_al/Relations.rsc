@@ -14,6 +14,7 @@ data RExpr
   | not(RExpr arg)
   | id(str class)  
   | total(str class)
+  | total(str from, str to)
   | empty()
   | implies(RExpr lhs, RExpr rhs)
   | equals(RExpr lhs, RExpr rhs)
@@ -41,6 +42,7 @@ str pp(e:inv(x), parent) = parens(e, parent, "~<pp(x, just(e))>");
 str pp(e:not(x), parent) = parens(e, parent, "!<pp(x, just(e))>");
 str pp(e:id(c), parent) = parens(e, parent, "𝕀(<c>)");
 str pp(e:total(c), parent) = "𝕍(<c>)";
+str pp(e:total(c1, c2), parent) = "𝕍 (<c1>, <c2>)";
 str pp(e:empty(), parent) = "∅";
 str pp(e:implies(lhs, rhs), parent) = parens(e, parent, "<pp(lhs, just(e))> ⊢ <pp(rhs, just(e))>");
 str pp(e:equals(lhs, rhs), parent) = parens(e, parent, "<pp(lhs, just(e))> = <pp(rhs, just(e))>");

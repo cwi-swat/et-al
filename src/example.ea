@@ -17,11 +17,14 @@ class Delivery
 class Client
   rule payInvoices: sentInvoice ⊢ paid
   paid: Invoice [inj]
-  sentInvoice: Invoice [inv(sendTo)]
+  sentInvoice: Invoice [inv(sentTo)]
   to: Order [inv(from)]
+
 
 class Product
   name: str
+
+
 
 class Provider
   rule properAddress: accepted + rejected ⊢ addressedFrom
@@ -34,7 +37,7 @@ class Provider
   addressedFrom: Order [inv(addressedTo)]
 
 class Invoice
-  rule correctPayments: Client.paid ⊢ sentTo
+  rule correctPayments: Client.paid ⊢ ~sentTo
   rule correctInvoices: sentTo ⊢ delivery.of.from
   rule sendInvoices: delivery.of.from ⊢ sentTo
   sentTo: Client [inv(sentInvoice)]

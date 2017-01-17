@@ -1,9 +1,9 @@
 module et_al::World
 
 extend lang::std::Layout;
-import et_al::EtAl;
+extend et_al::EtAl;
 
-start syntax World
+start syntax EtAlWorld
   = Instance*;
   
 syntax Instance

@@ -1,0 +1,9 @@
+
+obj client1: Client
+  to -> order1
+
+obj client2: Client
+  to -> order1
+
+obj order1: Order
+  from -> client1, client2

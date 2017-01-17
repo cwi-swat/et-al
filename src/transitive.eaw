@@ -1,0 +1,10 @@
+
+
+obj x: Obj
+  to -> y
+
+obj y: Obj
+  to -> z
+
+obj z: Obj
+  

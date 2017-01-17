@@ -2,13 +2,14 @@ module et_al::Repair
 
 import et_al::Relations;
 import et_al::Eval;
+import et_al::Normalize;
 import et_al::ToRules;
 
 import List;
 
 data Update
-  = add(tuple[str, str] val, Expr expr)
-  | del(tuple[str, str] val, Expr expr)
+  = add(tuple[str, str] val, RExpr expr)
+  | del(tuple[str, str] val, RExpr expr)
   | seq(set[Update] updates)
   | alt(set[Update] updates)
   ;
@@ -24,7 +25,7 @@ Update normalize(seq({u1*, seq(set[Update] us), u2*}), World w)
 // delete/add pairs of same tuple on same exp lead to failure
 // NB: do we require normalization of expressions? syntactic equiv = not real equiv.
 // or is enough because e will always (eventually) be base()?
-Update normalize(seq({u1*, add(tuple[str, str] t, Expr e), u2*, del(t, e), u3*}), World w)
+Update normalize(seq({u1*, add(tuple[str, str] t, RExpr e), u2*, del(t, e), u3*}), World w)
   = alt({});
 
 // alt of one is the thing itself.
@@ -40,7 +41,7 @@ Update normalize(seq({u1*, alt(set[Update] us), u2*}), World w)
 // eliminate things that are already compatible with the world
 Update normalize(add(tuple[str, str] t, b:base(_, _, _)), World w)
   = seq({}) 
-  when b in w.state, t in w.state[r];
+  when b in w.state, t in w.state[b];
 
 Update normalize(del(tuple[str, str] t, b:base(_, _, _)), World w)
   = seq({}) 
@@ -139,7 +140,7 @@ Update normalize(del(tuple[str, str] t, c:compose(lhs, rhs)), World w) {
 default Update normalize(Update u, World _) = u;
 
 Update repair(Rule rule, World w) {
-  updates = { normalize(add(t, exp), w) | t <- eval(not(rule.expr), w) };
+  updates = { normalize(add(t, normalize(rule.expr)), w) | t <- eval(not(rule.expr), w) };
   return normalize(seq(updates), w);
 }
 

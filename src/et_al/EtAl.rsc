@@ -7,7 +7,7 @@ start syntax Entities
   ;
   
 syntax Entity
-  = "class" EId Decl*
+  = "class" EId name Decl* decls
   ;
 
 syntax Invariant

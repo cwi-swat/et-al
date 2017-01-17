@@ -7,7 +7,8 @@ import Message;
 
 lexical EId = "$unknown";
 
-set[Message] check(start[Entities] es) = check(es, relEnv(es));
+set[Message] check(start[Entities] es) = check(es, env) + msgs
+  when <env, msgs> := relEnvWithMessages(es);
 
 set[Message] check(start[Entities] es, Env env) 
   = ( {} | it + check(e, env) | Entity e <- es.top.entities );

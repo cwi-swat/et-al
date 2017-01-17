@@ -3,16 +3,38 @@ module et_al::Resolve
 import et_al::EtAl;
 
 import ParseTree;
+import Message;
 
 alias Env = map[EId class, map[Id relation, EId target] rels];
 
-Env relEnv(start[Entities] es) {
-  env = ();
+Env relEnv(start[Entities] es) = relEnvWithMessages(es)[0];
+
+tuple[Env, set[Message]] relEnvWithMessages(start[Entities] es) {
+  Env env = ();
+  set[Message] msgs = {};
   visit (es) {
-    case (Entity)`class <EId c> <Decl* ds>`: 
-      env[c] = ( d.name: d.target | Decl d <- ds, d is relation );
+    case (Entity)`class <EId c> <Decl* ds>`: {
+      if (c in env) {
+        msgs += {error("Duplicate class", c@\loc)};
+      } 
+      else {
+        env[c] = ();
+      }
+      for (Decl d <- ds, d is relation) {
+        if (d.name in env[c], env[c][d.name] == d.target) {
+          msgs += {error("Redeclared relation", d.name@\loc)};
+        }
+        else if (d.name in env[c]) {
+          msgs += {warning("Duplicate relation with different type", d.name@\loc)};
+          env[c][d.name] = d.target;
+        }
+        else {
+         env[c][d.name] = d.target;  
+        }
+      }
+    }
   }
-  return env;
+  return <env, msgs>;
 }
 
 alias Refs = rel[loc use, loc def, str label];

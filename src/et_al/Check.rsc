@@ -5,8 +5,6 @@ import et_al::Resolve;
 
 import Message;
 
-lexical EId = "$unknown";
-
 set[Message] check(start[Entities] es) = check(es, env) + msgs
   when <env, msgs> := relEnvWithMessages(es);
 
@@ -86,28 +84,4 @@ str pp(tuple[EId, EId] typ) = "(<typ[0]>, <typ[1]>)";
 
 tuple[EId, EId] typeOf(Expr arg, EId owner, Env env)
   = <domain(arg, owner, env), range(arg, owner, env)>; 
-
-EId range((Expr)`<EId c>.id`, EId owner, Env env) = c;
-EId range((Expr)`id`, EId owner, Env env) = owner;
-EId range((Expr)`<EId c>.<Id r>`, EId owner, Env env)  
-  = ( (EId)`$unknown` | env[c][r] | c <- env, r <- env[c] );
-  
-EId range((Expr)`<Id r>`, EId owner, Env env)
-  = ( (EId)`$unknown` | env[owner][r] | owner <- env, r <- env[owner] );
-
-EId range((Expr)`~<Expr e>`, EId owner, Env env) = domain(e, owner, env);
-EId range((Expr)`!<Expr e>`, EId owner, Env env) = range(e, owner, env);
-EId range((Expr)`<Expr x>.<Expr y>`, EId owner, Env env) = range(y, range(x, owner, env), env);
-EId range((Expr)`<Expr x> + <Expr y>`, EId owner, Env env) = range(x, owner, env);
-EId range((Expr)`<Expr x> & <Expr y>`, EId owner, Env env) = range(x, owner, env);
-
-EId domain((Expr)`<EId c>.id`, EId owner, Env env) = c;
-EId domain((Expr)`id`, EId owner, Env env) = owner;
-EId domain((Expr)`<EId c>.<Id r>`, EId owner, Env env) = c;
-EId domain((Expr)`<Id r>`, EId owner, Env env) = owner;
-EId domain((Expr)`~<Expr e>`, EId owner, Env env) = range(e, owner, env);
-EId domain((Expr)`!<Expr e>`, EId owner, Env env) = domain(e, owner, env);
-EId domain((Expr)`<Expr x>.<Expr y>`, EId owner, Env env) = domain(x, owner, env);
-EId domain((Expr)`<Expr x> + <Expr y>`, EId owner, Env env) = domain(x, owner, env);
-EId domain((Expr)`<Expr x> & <Expr y>`, EId owner, Env env) = domain(x, owner, env);
 

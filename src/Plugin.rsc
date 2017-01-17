@@ -7,7 +7,10 @@ import et_al::World;
 import et_al::ToRules;
 import et_al::Relations;
 import et_al::Check;
+import et_al::Resolve;
 import et_al::Normalize;
+
+anno rel[loc, loc, str] Tree@hyperlinks;
 
 node outlineRules(start[Entities] pt) {
   list[Rule] rules = [ r[expr=normalize(r.expr)] | r <- toRules(pt) ];
@@ -39,7 +42,8 @@ void main() {
     outliner(outlineRules),
     annotator(Tree(Tree pt) {
       if (start[Entities] es := pt) {
-        return es[@messages=check(es)];
+        <env, msgs> = relEnvWithMessages(es);
+        return es[@messages=check(es, env) + msgs][@hyperlinks=resolve(es, env)];
       }
       return pt[@messages={error("Not an entities tree", pt@\loc)}];
     })

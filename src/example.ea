@@ -1,7 +1,7 @@
 class Order 
   rule createOrders: id ⊢ from.to
   from: Client [uni, inv(to)]
-  item: Product
+  item: Product 
   addressedTo: Provider [inv(addressedFrom)]
   deliveredBy: Delivery [inv(of)]
 

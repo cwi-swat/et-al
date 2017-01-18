@@ -139,8 +139,12 @@ Update normalize(del(tuple[str, str] t, c:compose(lhs, rhs)), World w) {
 
 default Update normalize(Update u, World _) = u;
 
+rel[str, str] violations(Rule rule, World w) = eval(not(rule.expr), w);
+
 Update repair(Rule rule, World w) {
   updates = { normalize(add(t, normalize(rule.expr)), w) | t <- eval(not(rule.expr), w) };
   return normalize(seq(updates), w);
 }
+
+
 

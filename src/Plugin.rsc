@@ -13,7 +13,7 @@ import et_al::Normalize;
 anno rel[loc, loc, str] Tree@hyperlinks;
 
 node outlineRules(start[Entities] pt) {
-  list[Rule] rules = [ r[expr=normalize(r.expr)] | r <- toRules(pt) ];
+  list[Rule] rules = [ r | r <- toRules(pt) ];
   
   list[EId] concepts = [ c | /(Entity)`class <EId c> <Decl* _>` := pt ];
   

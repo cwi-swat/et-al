@@ -24,8 +24,6 @@ class Client
 class Product
   name: str
 
-
-
 class Provider
   rule properAddress: accepted + rejected ⊢ addressedFrom
   rule acceptOrders: addressedFrom ⊢ accepted + rejected

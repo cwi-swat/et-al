@@ -383,7 +383,9 @@ function Salix(aRootId) {
 				return function (e) { return {type: 'string', value: e.target.value}; };
 			},
 			targetChecked: function (args) {
-				return function (e) { return {type: 'boolean', value: e.target.checked}; };
+				return function (e) { 
+					return {type: 'boolean', value: e.target.checked}; 
+				};
 			},
 			theKeyCode: function (args) {
 				return function (e) {

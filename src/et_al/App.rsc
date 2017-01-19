@@ -7,6 +7,7 @@ import et_al::Eval;
 import salix::App;
 import salix::HTML;
 import salix::Core;
+import salix::Node;
 import salix::lib::UML;
 
 import Node;
@@ -16,19 +17,20 @@ import util::Maybe;
 
 alias Model = tuple[
   str newClass,
+  int id,
   Spec spec
 ];
 
 data Spec
-  = spec(lrel[str, Class] classes)
+  = spec(list[Class] classes)
   ;
   
 data Class
-  = class(str name, lrel[str, Rel] relations, list[Rule] rules, str newRel = "")
+  = class(int id, str name, list[Rel] relations, list[Rule] rules, str newRel = "", bool editingName = false)
   ;
   
 data Rel
-  = relation(str name, str target, set[Mod] modifiers)
+  = relation(int id, str name, str target, set[Mod] modifiers)
   ;
   
 data Rule
@@ -46,7 +48,7 @@ data Mod
   | inverse(str relation)
   ;
 
-Graph spec2graph(Spec s) = { <f, l, t> | <str f, class(_, /relation(str l, str t, _), _)> <- s.classes, t != "" };
+Graph spec2graph(Spec s) = { <f, l, t> | class(_, str f, /relation(_, str l, str t, _), _) <- s.classes, t != "" };
 
 App[Model] etAlApp()
   = app(init, view, update, |http://localhost:9900|, |project://EtAl/src/et_al|);
@@ -54,28 +56,40 @@ App[Model] etAlApp()
 data Msg
   = addNewClass()
   | updateNewClass(str name)
-  | updateClassName(Class class, str newName)
-  | addNewRel(Class class)
-  | updateNewRel(Class class, str newRel)
-  | updateRelName(Class class, Rel relation, str newName)
-  | updateRelTarget(Class class, Rel relation, str newTarget)
-  | setRelInverse(Class class, Rel relation, str inverseRel)
-  | setModifier(Class class, Rel relation, Mod modifier, bool enabled)
+  | updateClassName(int id, str newName)
+  | addNewRel(int class)
+  | startEditing(int class)
+  | stopEditing(int class)
+  | updateNewRel(int class, str newRel)
+  | updateRelName(int class, int relation, str newName)
+  | updateRelTarget(int class, int relation, str newTarget)
+  | setRelInverse(int class, int relation, str inverseRel)
+  | setModifier(int class, int relation, Mod modifier, bool enabled)
   ;
 
-Model init() = <"", spec([])>;
+Model init() = <"", 0, spec([])>;
 
 Model update(Msg msg, Model m) {
-  lrel[str, Class] updateClass(lrel[str, Class] classes, Class class)
-    = [ <cn, cn == class.name ? class : c> | <str cn, Class c> <- classes ]; 
+  list[Class] updateClass(list[Class] classes, Class class)
+    = [ c.id == class.id ? class : c | Class c <- classes ]; 
 
-  lrel[str, Rel] updateRel(lrel[str, Rel] relations, Rel r)
-    = [ <rn, rn == r.name ? r : r0> | <str rn, Rel r0> <- relations ]; 
+  list[Rel] updateRel(list[Rel] rels, Rel relation)
+    = [ r.id == relation.id ? relation : r | Rel r <- rels ]; 
+    
+  Class findClass(int id) = [ c | Class c <- m.spec.classes, c.id == id ][0];
+  Rel findRel(Class class, int id) = [ r | Rel r <- class.relations, r.id == id ][0];
 
   switch (msg) {
+    case startEditing(int c): 
+      m.spec.classes = updateClass(m.spec.classes, findClass(c)[editingName=true]);
+
+    case stopEditing(int c): 
+      m.spec.classes = updateClass(m.spec.classes, findClass(c)[editingName=false]);
+       
     case addNewClass(): {
-      if (m.newClass != "", m.newClass notin m.spec.classes<0>) {
-        m.spec.classes += [<m.newClass, class(m.newClass, [], [])>];
+      if (m.newClass != "", m.newClass notin { c.name | Class c <- m.spec.classes }) {
+        m.spec.classes += [class(m.id, m.newClass, [], [])];
+        m.id += 1;
         m.newClass = "";
       }
     }
@@ -83,45 +97,60 @@ Model update(Msg msg, Model m) {
     case updateNewClass(str n):
       m.newClass = n;
     
-    case updateClassName(Class class, str n): {
-      m.spec.classes = [ <cn == class.name ? n : cn, cn == class.name ? class[name=n] : c> | <str cn, Class c> <- m.spec.classes ];
-      m.spec.classes = visit (m.spec.classes) {
-        case r:relation(_, str target, _) => r[target=n] when target == class.name
+    case updateClassName(int id, str n): {
+      if (n != "") {
+        Class class = findClass(id);
+        m.spec.classes = updateClass(m.spec.classes, class[name=n]);
+        m.spec.classes = visit (m.spec.classes) {
+          case r:relation(_, str target, _) => r[target=n] when target == class.name
+        }
       }  
     }
     
-    case addNewRel(Class class): {
-      if (class.newRel notin class.relations<0>) {
-        class.relations += [<class.newRel, relation(class.newRel, "", {})>];
+    case addNewRel(int id): {
+      Class class = findClass(id);
+      if (class.newRel != "", class.newRel notin { r.name | Rel r <- class.relations }) {
+        class.relations += [relation(m.id, class.newRel, "", {})];
+        m.id += 1;
         m.spec.classes = updateClass(m.spec.classes, class[newRel=""]);
       }
     }
     
-    case updateNewRel(Class class, str n):
-      m.spec.classes = updateClass(m.spec.classes, class[newRel=n]); 
+    case updateNewRel(int class, str n):
+      m.spec.classes = updateClass(m.spec.classes, findClass(class)[newRel=n]); 
     
-    case updateRelName(Class class, Rel old, str newName): {
-      class.relations = [ <rn == old.name ? newName : rn, rn == old.name ? old[name=newName] : r> | <str rn, Rel r> <- class.relations ];
-      m.spec.classes = updateClass(m.spec.classes, class);
-      m.spec.classes = visit (m.spec.classes) {
-        case r: relation(_, str target, {inverse(str invName), *mods}) => r[modifiers=mods + {inverse(newName)}]
-          when target == class.name, invName == old.name
+    case updateRelName(int id, int old, str newName): {
+      if (newName != "") {
+        Class class = findClass(id);
+        Rel oldRel = findRel(class, old);
+        class.relations = [ r.id == old ? r[name=newName] : r | Rel r <- class.relations ];
+        m.spec.classes = updateClass(m.spec.classes, class);
+        m.spec.classes = visit (m.spec.classes) {
+          case r: relation(_, _, str target, {inverse(str invName), *mods}) => r[modifiers=mods + {inverse(newName)}]
+            when target == class.name, invName == oldRel.name
+        }
       }
     }
     
-    case updateRelTarget(Class class, Rel relation, str newTarget): { 
-      class.relations = updateRel(class.relations, relation[target = newTarget]);
+    case updateRelTarget(int id, int relation, str newTarget): { 
+      // todo: remove inverse
+      Class class = findClass(id);
+      class.relations = updateRel(class.relations, findRel(class, relation)[target = newTarget]);
       m.spec.classes = updateClass(m.spec.classes, class);
     }
 
-    case setRelInverse(Class class, Rel relation, str inverseRel): {
-      relation.modifiers = { modi | modi <- relation.modifiers, inv(_) !:= modi };
+    case setRelInverse(int id, int rid, str inverseRel): {
+      Class class = findClass(id);
+      Rel relation = findRel(class, rid);
+      relation.modifiers = { modi | modi <- relation.modifiers, inverse(_) !:= modi };
       relation.modifiers += {inverse(inverseRel)};
       class.relations = updateRel(class.relations, relation);
       m.spec.classes = updateClass(m.spec.classes, class);       
     }
 
-    case setModifier(Class class, Rel relation, Mod modi, bool enabled): {
+    case setModifier(int id, int rid, Mod modi, bool enabled): {
+      Class class = findClass(id);
+      Rel relation = findRel(class, rid);
       relation.modifiers = ( relation.modifiers - {modi} | it + {modi} | enabled );
       class.relations = updateRel(class.relations, relation);
       m.spec.classes = updateClass(m.spec.classes, class);
@@ -130,6 +159,11 @@ Model update(Msg msg, Model m) {
   
   return m;
 }
+
+Attr onEnter(Msg msg) 
+  = event("keydown", handler("theKeyCode", encode(msg), args = ("keyCode": 13)));
+
+
 
 void view(Model m) {
   div(() {
@@ -140,14 +174,14 @@ void view(Model m) {
     });
     div(class("row"), () {
       div(class("col-md-6"), () {
-        for (<_, Class c> <- m.spec.classes) {
+        for (Class c <- m.spec.classes) {
           viewClass(c, m);
         }
         input(\type("text"), \value(m.newClass), onInput(updateNewClass));
         button(onClick(addNewClass()), "Add");
       });
       div(class("col-md-6"), () {
-        div(uml2svgNode(graph2uml(spec2graph(m.spec))));
+        //div(uml2svgNode(graph2uml(spec2graph(m.spec))));
       });
     });
   });
@@ -155,14 +189,23 @@ void view(Model m) {
 
 str relKey(Rel r, Class ctx, str suffix) = "<ctx.name>_<r.name>_<suffix>";
 
+void editable(bool editing, str text, Msg(str) msg, Msg startEditing, Msg stopEditing) {
+   if (editing) {
+     input(\type("text"), \value(text), onInput(msg), onEnter(stopEditing));
+   }
+   else {
+     span(onClick(startEditing), text);
+   }
+}
+
 void viewClass(Class class, Model model) {
-  h3(class.name);
+  h3(() {
+    editable(class.editingName, class.name, partial(updateClassName, class.id), startEditing(class.id), stopEditing(class.id));
+  }); 
   fieldset(() {
-    label(\for("<class.name>_name"), "Name");
-    input(id("<class.name>_name"), \type("text"), \value(class.name), onInput(partial(updateClassName, class)));
     viewRels(class, model);
-    input(\type("text"), \value(class.newRel), onInput(partial(updateNewRel, class)));
-    button(onClick(addNewRel(class)), "Add relation");
+    input(\type("text"), \value(class.newRel), onInput(partial(updateNewRel, class.id)));
+    button(onClick(addNewRel(class.id)), "Add relation");
   });
 }
 
@@ -170,32 +213,37 @@ void viewRels(Class class, Model model) {
   table(style(<"padding", "5px">), () {
     thead(() {
       tr(() {
-        th("Relation");
-        th("Target");
-        th("Sur");
-        th("Inj");
-        th("Ref");
-        th("Trans");
-        th("Sym");
-        th("Uni");
-        th("Inverse");
+        th(style(<"width", "40%">), "Relation");
+        th(style(<"width", "25%">), "Target");
+        th(style(<"width", "5%">), "Sur");
+        th(style(<"width", "5%">), "Inj");
+        th(style(<"width", "5%">), "Ref");
+        th(style(<"width", "5%">), "Trans");
+        th(style(<"width", "5%">), "Sym");
+        th(style(<"width", "5%">), "Uni");
+        th(style(<"width", "5%">), "Inverse");
       });
     });
-    for (<_, Rel r> <- class.relations) {
-      tr(() {
-        viewRel(r, class, model);
-      });
-    }
+    tbody(() {
+      for (Rel r <- class.relations) {
+        tr(() {
+          viewRel(r, class, model);
+        });
+      }
+    });
   });
 }
+
+Attr onEnter(Msg msg) 
+  = event("keydown", handler("theKeyCode", encode(msg), args = ("keyCode": 13)));
 
 
 void viewRel(Rel r, Class ctx, Model model) {
   td(() {
-    input(id(relKey(r, ctx, "name")), \type("text"), \value(r.name), onInput(partial(updateRelName, ctx, r)));
+    input(\type("text"), \value(r.name), onInput(partial(updateRelName, ctx.id, r.id)));
   });
   td(() {
-    dropDown(relKey(r, ctx, "target"), model.spec.classes<0>, r.target, "Select class...", partial(updateRelTarget, ctx, r));
+    dropDown([ c.name | Class c <- model.spec.classes ], r.target, "Select class...", partial(updateRelTarget, ctx.id, r.id));
   });
   
   viewModifiers(r.modifiers, r, ctx, model);
@@ -205,7 +253,7 @@ void viewModifiers(set[Mod] mods, Rel r, Class ctx, Model model) {
   Attr checked(Mod m) = checked(m in mods);
   
   void checkBox(Mod m) {
-    input(\type("checkbox"), onCheck(partial(setModifier, ctx, r, m)), checked(m));
+    input(\type("checkbox"), onCheck(partial(setModifier, ctx.id, r.id, m)), checked(m));
   }
 
 
@@ -218,15 +266,15 @@ void viewModifiers(set[Mod] mods, Rel r, Class ctx, Model model) {
   
   str myInverse() = (inv(str r) <- mods) ? r : "";
   
-  list[str] inverses = [ i | Class c <- model.spec.classes[r.target], <str i, _> <- c.relations];
+  list[str] inverses = [ i.name | Class c <- model.spec.classes, c.name == r.target, Rel i <- c.relations];
   
   td(() {
-    dropDown("<ctx.name>_<r.name>_inv", inverses, myInverse(), "Inverse...", partial(setRelInverse, ctx, r));
+    dropDown(inverses, myInverse(), "Inverse...", partial(setRelInverse, ctx.id, r.id));
   });
 }
 
-void dropDown(str x, list[str] options, str sel, str hint, Msg(str) message) {
-  select(id(x), onInput(message), () {
+void dropDown(list[str] options, str sel, str hint, Msg(str) message) {
+  select(onInput(message), () {
     option(\value(""), disabled(true), selected(true), hint);
     for (str opt <- options) {
       option(\value(opt), selected(opt == sel), opt);

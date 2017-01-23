@@ -7,6 +7,7 @@ import et_al::ToRules;
 
 import List;
 import Set;
+import IO;
 
 data Update
   = add(tuple[str, str] val, RExpr expr)
@@ -30,10 +31,10 @@ Update seq({add(tuple[str, str] t, RExpr e), del(t, e), *_})
   = alt({});
 
 // alt of one is the thing itself.
-Update alt({Update u}) = u;
+//Update alt({Update u}) = u;
   
 // same for seq
-Update seq({Update u}) = u;
+//Update seq({Update u}) = u;
 
 // move alts outwards
 Update seq({alt(set[Update] us), *rest})
@@ -106,7 +107,7 @@ Update repair(del(tuple[str, str] t, c:compose(args)), World w)
 // from compositions
 Update repair(add(tuple[str, str] t, c:compose(lhs, rhs)), World w) {
   set[Update] subs = {};
-  l = eval(lhs, w);
+  l = eval(lhs, w); // todo: the world here does not reflect additions in the current repair...
   r = eval(rhs, w);
   for (j <- l<1> & r<0>) {
     subs += {seq({repair(add(<t[0], j>, lhs), w), 
@@ -152,6 +153,33 @@ Update repair(Rule rule, World w) {
   return seq(updates);
 }
 
+
+
+Update fix(Rule rule, World w) {
+  newAlt = alt({});
+  for (Update a <- repair(rule, w).updates) {
+    println("REPAIRING again: <a>");
+    World w2 = w;
+    solve (a) {
+      for (add(tuple[str,str] t, b:base(_, _, _)) <- a.updates) {
+        w2.state[b] += t;
+      }
+      for (del(tuple[str,str] t, b:base(_, _, _)) <- a.updates) {
+        w2.state[b] -= t;
+      }
+      a = repair(rule, w2);
+      println("World:");
+      iprintln(w2);
+    }
+    if (a != alt({})) {
+      // non fail
+      newAlt.updates += {a};
+    }
+  }
+  return newAlt;
+}
+
+
 set[Update] least(Update u) {
   // assumes disjunctive normal form for u;
   if (u is add || u is del || u is seq) {
@@ -167,8 +195,10 @@ set[Update] least(Update u) {
       result += {a};
       continue;  
     }
-    // a is seq
+    
+    assert a is seq;
     int mySize = size(a.updates);
+
     if (mySize < smallest || smallest == -1) {
       smallest = mySize;
       result = {a};
@@ -227,6 +257,9 @@ RExpr reflRule()
   
 RExpr uniRule()
   = implies(compose([inv(base("R", "X", "X")), base("R", "X", "X")]), id("X"));
+   
+RExpr symRule()
+  = implies(inv(base("R", "X", "X")), base("R", "X", "X"));
    
 
 

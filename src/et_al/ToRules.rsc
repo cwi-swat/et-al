@@ -94,7 +94,9 @@ RExpr mod2rexpr(m:(Modifier)`sur`, Id name, EId owner, EId target)
   = implies(id(target), compose([inv(base(name, owner, target)), base(name, owner, target)]));
   
 RExpr mod2rexpr(m:(Modifier)`ref`, Id name, EId owner, EId target)
-  = implies(union({id(owner), id(target)}), base(name, owner, target));
+//  = implies(union({id(owner), id(target)}), base(name, owner, target));
+  = implies(id(owner), base(name, owner, target))
+  when owner := target;
   
 RExpr mod2rexpr(m:(Modifier)`trans`, Id name, EId owner, EId target)
   = implies(compose([base(name, owner, target), base(name, owner, target)]), base(name, owner, target));

@@ -6,13 +6,12 @@ class Order
   deliveredBy: Delivery [inv(of)]
 
 class Delivery
-  rule correctDelivery: item ⊢ of.item
-  rule completeDelivery: of.item ⊢ item
-  rule receiveGoods:  of.from ⊢ deliveredTo
+  rule everyItemIsSomeOrdersItems: item ⊢ of.item
+  rule everyOrdersItemIsADeliverysItem: of.item ⊢ item
+  rule theClientAnOrderIsFromIsTheSameAsADevliveryisDeliveredTo: of.from ⊢ deliveredTo
   item: Product
   of: Order [inv(deliveredBy)]
   deliveredTo: Client
-
 
 class Client
   rule payInvoices: sentInvoice ⊢ paid

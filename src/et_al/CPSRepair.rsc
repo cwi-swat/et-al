@@ -15,6 +15,19 @@ data Update
   ;
 
 alias K = void(set[Update]);
+
+alias Delta
+  = tuple[rel[str, str] added, rel[str, str] deleted];
+
+alias Trail
+  = map[str relation, Delta delta];
+ 
+/* How would we do this in a mutable Object Model setting
+  e.g., when concepts are classes, and tuples are pointers?
+
+  
+*/
+ 
  
 World updateWithTrail(World w, set[Update] trail) {
   for (add(tuple[str, str] t, b:base(_, _, _)) <- trail) {
@@ -182,7 +195,22 @@ RExpr uniRule()
    
 RExpr symRule()
   = implies(inv(base("R", "X", "X")), base("R", "X", "X"));
+ 
+RExpr surRule() 
+  = implies(id("Y"), compose([inv(base("R", "X", "Y")), base("R", "X", "Y")])); 
   
+RExpr injRule()
+  = implies(compose([base("R", "X", "Y"), inv(base("R", "X", "Y"))]), id("X"));  
+
+
+bool leq(set[Update] x, set[Update] y) {
+  if (numOfAdds(x) > numOfAdds(y)) {
+    return true;
+  }
+  if (numOfAdds(x) == numOfAdds(y)) {
+    return size(x) <= size(y);
+  }
+}
   
 set[set[Update]] least(set[set[Update]] u) {
   int smallest = -1;
@@ -205,6 +233,10 @@ set[set[Update]] least(set[set[Update]] u) {
   
 set[set[Update]] repair(Rule rule, World w) {
   result = repair(rule, w, {});
+  
+  // ok, this works, but obviously seems extremely slow.
+  // irl we would of course do it per rule, and only if a 
+  // rule is affected by an update to a base relation.
   
   solve (result) {
     newResult = {};
@@ -229,10 +261,6 @@ set[set[Update]] repair(Rule rule, World w, set[Update] theTrail) {
       repair(add(t, rule.expr), w, tr, k0);
     };
   }
-
-  // This still misses the fixed point...
-  // whenver we get a trial at the final continuation we need 
-  // to feed it back in.
 
   k = ( k | make(t, it) | t <- eval(not(rule.expr), updateWithTrail(w, theTrail)) );
   

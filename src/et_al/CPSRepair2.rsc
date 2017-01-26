@@ -8,6 +8,7 @@ import et_al::ToRules;
 
 import List;
 import Set;
+import Map;
 import IO;
 
 
@@ -343,33 +344,49 @@ RExpr injRule()
 RExpr weirdRule()
   = equals(base("R", "X", "X"), id("X"));
 
-bool leq(set[Update] x, set[Update] y) {
-  if (numOfAdds(x) > numOfAdds(y)) {
-    return true;
-  }
-  if (numOfAdds(x) == numOfAdds(y)) {
-    return size(x) <= size(y);
-  }
-}
-  
-set[set[Update]] least(set[set[Update]] u) {
-  int smallest = -1;
-  set[set[Update]] result = {};
-   
-  for (set[Update] a <- u) {
-    int mySize = size(a);
 
-    if (mySize < smallest || smallest == -1) {
-      smallest = mySize;
-      result = {a};
-    }
-    if (mySize == smallest) {
-      result += {a};
-    }
+list[set[Trail]] order(set[Trail] trails) {
+  
+  int numOfAdds(Trail t) {
+    return ( 0 | it + size(t.rels.added[b]) | b <- t.rels.added );
   }
   
+  map[int, set[Trail]] part = ();
+  
+  for (Trail t <- trails) {
+    int n = numOfAdds(t);
+    if (n notin part) {
+      part[n] = {};
+    }
+    part[n] += {t};
+  }
+  
+  return [ part[i] | int i <- reverse(sort(toList(domain(part)))) ];
+}
+
+set[Trail] least(set[Trail] trails) {
+
+  int trailSize(Trail t) {
+    return ( 0 | it + size(t.rels.added[b]) | b <- t.rels.added )
+       + ( 0 | it + size(t.rels.deleted[b]) | b <- t.rels.deleted );
+  }
+
+  result = {};
+  int n = -1;
+  lst = order(trails);
+  for (Trail t <- lst[0]) {
+    int ts = trailSize(t);
+    if (ts < n || n == -1) {
+      n = ts;
+      result = {t};
+    }
+    else if (ts == n) {
+      result += {t};
+    } 
+  }
   return result;
 }
+  
   
 set[Trail] repair(Rule rule, World w) {
   result = repair(rule, w, <<(), ()>, <(), ()>>);

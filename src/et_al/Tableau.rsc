@@ -125,7 +125,7 @@ Tableau derive(T(total(str f, str t)), Var a, Var b)
 
 Tableau derive(T(total(str f, str t)), Var a, Var b)
   = alt({})
-  when a.class != f, b.class != t;
+  when a.class != f || b.class != t;
 
 Tableau derive(F(total(str f, str t)), Var a, Var b)
   = seq({})
